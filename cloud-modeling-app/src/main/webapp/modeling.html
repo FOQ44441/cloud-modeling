@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Моделирование</title>
+<link rel="stylesheet" href="/cloud-modeling-app/css/app.css">
+<link rel="stylesheet" href="/cloud-modeling-app/css/bootstrap.css">
+
+<!-- Angular and Threejs -->
+<script src="/cloud-modeling-app/lib/angular/angular.js"></script>
+<script src="/cloud-modeling-app/js/controllers.js"></script>
+
+<script src="/cloud-modeling-app/lib/angular/angular.js"></script>
+<script src="/cloud-modeling-app/lib/webgl/glMatrix-0.9.5.min.js"></script>
+<script src="/cloud-modeling-app/lib/webgl/webgl-utils.js"></script>
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+    }
+</script>
+
+<script src="/cloud-modeling-app/lib/webgl/webgl-app.js"></script>
+<style>
+  .panel {
+    background-color: gray;
+  }
+</style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-2">
+        <!--Sidebar content-->
+        <label for="dim_ox">Длина</label>
+        <input id="dim_ox" class="form-control" type="text" />
+        <label for="dim_oy">Ширина</label>
+        <input id="dim_oy" class="form-control" type="text" />
+        <label for="dim_oz">Толщина</label>
+        <input id="dim_oz" class="form-control" type="text" />
+
+        <input type="button" class="btn btn-primary" id="btn_redraw" value="Start"
+          onclick="webGLStart();"
+        >
+        
+        <input type="button" class="btn btn-primary" id="btn_stop" value="Pause"
+          onclick="webGLPause();"
+        >
+
+        <input type="button" class="btn btn-primary" id="btn_stop" value="Resume"
+          onclick="webGLResume();"
+        >
+        
+      </div>
+      <div class="col-sm-10">
+        <div class="panel">
+          <canvas id="modeling-canvas" style="border: none;" width="500" height="500"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
