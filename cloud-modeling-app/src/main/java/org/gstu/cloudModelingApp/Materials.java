@@ -10,17 +10,15 @@ import javax.ws.rs.core.MediaType;
 
 import org.gstu.TestModel.AbstractMaterial;
 import org.gstu.TestModel.IMaterial;
+import org.gstu.domainmodel.MaterialService;
 
 @Path("materials")
 public class Materials {
-
-	 @GET
+  
+	    @GET
 	    @Produces(MediaType.APPLICATION_JSON)
 	    public List<IMaterial> getDefaultUserInJSON() {
-	        //UserService userService = new UserService();
-	        List<IMaterial> materials = new ArrayList<>();
-	        materials.add(new AbstractMaterial("Сталь"));
-	        materials.add(new AbstractMaterial("Свинец"));
-	        return materials;
+	        MaterialService materialServ = new MaterialService();
+	        return materialServ.getAll();
 	    }
 }
