@@ -9,41 +9,22 @@
 <!-- Angular and Threejs -->
 <script src="/cloud-modeling-app/lib/angular/angular.js"></script>
 <script src="/cloud-modeling-app/js/controllers.js"></script>
-
 <script src="/cloud-modeling-app/lib/angular/angular.js"></script>
-<script src="/cloud-modeling-app/lib/webgl/glMatrix-0.9.5.min.js"></script>
-<script src="/cloud-modeling-app/lib/webgl/webgl-utils.js"></script>
-<script id="shader-fs" type="x-shader/x-fragment">
-    precision mediump float;
 
-    varying vec4 vColor;
 
-    void main(void) {
-        gl_FragColor = vColor;
-    }
-</script>
+ 
+ <script src="/cloud-modeling-app/lib/threejs/three.min.js"></script>
+ <script src="/cloud-modeling-app/testjs/OrbitControls.js"></script>
+ <script src="/cloud-modeling-app/testjs/SubdivisionModifier.js"></script>
 
-<script id="shader-vs" type="x-shader/x-vertex">
-    attribute vec3 aVertexPosition;
-    attribute vec4 aVertexColor;
-
-    uniform mat4 uMVMatrix;
-    uniform mat4 uPMatrix;
-
-    varying vec4 vColor;
-
-    void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-        vColor = aVertexColor;
-    }
-</script>
-
-<script src="/cloud-modeling-app/lib/webgl/webgl-app.js"></script>
 <style>
   .panel {
     background-color: gray;
   }
 </style>
+
+
+
 </head>
 
 <body>
@@ -59,25 +40,334 @@
         <label for="dim_oz">Толщина</label>
         <input id="dim_oz" class="form-control" type="text" />
 
-        <input type="button" class="btn btn-primary" id="btn_redraw" value="Start"
-          onclick="webGLStart();"
-        >
+        <input type="button" class="btn btn-primary" id="btn_redraw" value="Build"
+          >
+          
         
-        <input type="button" class="btn btn-primary" id="btn_stop" value="Pause"
-          onclick="webGLPause();"
-        >
-
-        <input type="button" class="btn btn-primary" id="btn_stop" value="Resume"
-          onclick="webGLResume();"
-        >
         
       </div>
       <div class="col-sm-10">
-        <div class="panel">
-          <canvas id="modeling-canvas" style="border: none;" width="500" height="500"></canvas>
+        <div class="panel" id="gl-display" style="height:600px;">
+         
         </div>
       </div>
     </div>
   </div>
 </body>
+
+
+
+<script> 
+
+			var container, group;
+			var camera, controls, scene, renderer;
+
+			var cube, plane, animation;
+
+			// Create new object by parameters
+
+			var createSomething = function( klass, args ) {
+
+				var F = function( klass, args ) {
+				   return klass.apply( this, args );
+
+				}
+
+				F.prototype = klass.prototype;
+
+				return new F( klass, args );
+
+			};
+
+
+			// Cube
+
+			var materials = [];
+
+			for ( var i = 0; i < 6; i ++ ) {
+
+				materials.push( [ new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff, wireframe: false } ) ] );
+
+			}
+
+
+
+			var geometriesParams = [
+
+				{ type: 'BoxGeometry', args: [ 200, 200, 200, 5, 5, 5, materials ] }			
+
+			];
+
+		
+
+			var info;
+			var subdivisions = 2;
+			var geometryIndex = 0;
+
+			// start scene
+
+			init();
+			animate();
+
+			function nextSubdivision( x ) {
+
+				subdivisions = Math.max( 0, subdivisions + x );
+				addStuff();
+
+			}
+
+			function nextGeometry() {
+
+				geometryIndex ++;
+
+				if ( geometryIndex > geometriesParams.length - 1 ) {
+
+					geometryIndex = 0;
+
+				}
+
+				addStuff();
+
+			}
+
+			function switchGeometry(i) {
+
+				geometryIndex = i;
+
+				addStuff();
+			}
+
+			function updateInfo() {
+
+				var params = geometriesParams[ geometryIndex ];
+
+				var dropdown = '<select id="dropdown" onchange="switchGeometry(this.value)">';
+
+				for (  i = 0; i < geometriesParams.length; i ++ ) {
+					dropdown += '<option value="' + i + '"';
+
+					dropdown += (geometryIndex == i)  ? ' selected' : '';
+
+					dropdown += '>' + geometriesParams[i].type + '</option>';
+				}
+
+				dropdown += '</select>';
+
+				info.innerHTML = 'Drag to spin THREE.' + params.type +
+
+				 	'<br><br>Subdivisions: '  + subdivisions +
+					' <a href="#" onclick="nextSubdivision(1); return false;">more</a>/<a href="#" onclick="nextSubdivision(-1); return false;">less</a>' +
+					'<br>Geometry: ' + dropdown + ' <a href="#" onclick="nextGeometry();return false;">next</a>' +
+					'<br><br>Vertices count: before ' + geometry.vertices.length + ' after ' + smooth.vertices.length +
+					'<br>Face count: before ' + geometry.faces.length + ' after ' + smooth.faces.length
+				; //+ params.args;
+			}
+
+			function addStuff() {
+
+				if ( cube ) {
+
+					scene.remove( group );
+					scene.remove( cube );
+
+				}
+
+
+				var modifier = new THREE.SubdivisionModifier( subdivisions );
+
+
+				var params = geometriesParams[ geometryIndex ];
+
+				geometry = createSomething( THREE[ params.type ], params.args );
+
+				// Scale Geometry
+
+				if ( params.scale ) {
+
+					geometry.applyMatrix( new THREE.Matrix4().makeScale( params.scale, params.scale, params.scale ) );
+
+				}
+
+				// Cloning original geometry for debuging
+
+				smooth = geometry.clone();
+
+				// mergeVertices(); is run in case of duplicated vertices
+				smooth.mergeVertices();
+
+				smooth.computeCentroids();
+				smooth.computeFaceNormals();
+				smooth.computeVertexNormals();
+
+				modifier.modify( smooth );
+
+				updateInfo();
+
+				var faceABCD = "abcd";
+				var color, f, p, n, vertexIndex;
+
+				for ( i = 0; i < smooth.faces.length; i ++ ) {
+
+					f  = smooth.faces[ i ];
+
+
+					n = ( f instanceof THREE.Face3 ) ? 3 : 4;
+
+					for( var j = 0; j < n; j++ ) {
+
+						vertexIndex = f[ faceABCD.charAt( j ) ];
+
+						p = smooth.vertices[ vertexIndex ];
+
+						color = new THREE.Color( 0xffffff );
+						color.setHSL( ( p.y ) / 200 + 0.5, 1.0, 0.5 );
+
+						f.vertexColors[ j ] = color;
+
+					}
+
+				}
+
+				group = new THREE.Object3D();
+				scene.add( group );
+
+				var material = new THREE.MeshBasicMaterial( { color: 0xfefefe, wireframe: true, opacity: 0.5 } );
+				var mesh = new THREE.Mesh( geometry, material )
+				group.add( mesh );
+
+				var meshmaterials = [
+					new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
+					new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } )
+				];
+
+				cube = THREE.SceneUtils.createMultiMaterialObject( smooth, meshmaterials );
+
+				var meshScale =  params.meshScale ? params.meshScale : 1;
+
+				cube.scale.x = meshScale;
+				cube.scale.y = meshScale;
+				cube.scale.z = meshScale;
+
+				scene.add( cube );
+
+				group.scale.copy( cube.scale );
+
+			}
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				var glDisplay = document.getElementById('gl-display');
+				debugger;
+				 glDisplay.appendChild(container);
+				//document.body.appendChild( container );
+
+				
+				debugger;
+				
+				info = document.createElement( 'div' );
+				
+				info.style.position = 'absolute';
+				info.style.top = '10px';
+				info.style.width = '100%';
+				info.style.textAlign = 'center';
+				info.innerHTML = 'Drag to spin the geometry ';
+				
+				container.appendChild( info );
+
+				
+				camera = new THREE.PerspectiveCamera( 70, glDisplay.offsetWidth / glDisplay.offsetHeight, 1, 1000 );
+				camera.position.z = 500;
+
+				controls = new THREE.OrbitControls( camera , glDisplay);
+
+				scene = new THREE.Scene();
+
+				//var light = new THREE.PointLight( 0xffffff, 1.5 );
+				//light.position.set( 1000, 1000, 2000 );
+				//scene.add( light );				
+				hemiLight = new THREE.HemisphereLight( 0x0000ff, 0x00ff00, 0.8 ); 
+				scene.add( hemiLight );
+				
+				//addStuff();
+
+				//Оси координат
+				object = new THREE.AxisHelper( 500 );
+				object.position.set( 0, 0, 0 );
+				scene.add( object );
+				
+				
+				
+				var materials = [
+
+									new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
+									new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true } )
+
+								];
+				
+				var loader = new THREE.JSONLoader( true );
+				loader.load( "testjs/demo.json", function( geometry ) {
+				//material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
+				//mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true}) );//new THREE.MeshLambertMaterial( { color: 0x606060, morphTargets: true } ) );
+				mesh = THREE.SceneUtils.createMultiMaterialObject( geometry, materials );	
+				mesh.scale.set( 100.5, 100.5, 100.5 );
+				scene.add( mesh );
+
+					//animation = new THREE.MorphAnimation( mesh );
+					//animation.play();
+
+				} );
+				
+				
+				renderer = new THREE.WebGLRenderer( { antialias: true } ); // WebGLRenderer CanvasRenderer
+				
+				//цвет фона
+				renderer.setClearColor( 0xf0f0f0 );
+				renderer.setSize(glDisplay.offsetWidth, glDisplay.offsetHeight );
+
+				container.appendChild( renderer.domElement );
+
+			
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = glDisplay.offsetWidth / glDisplay.offsetHeight;
+				camera.updateProjectionMatrix();
+				
+				renderer.setSize( glDisplay.offsetWidth, glDisplay.offsetHeight );
+			}
+
+			//
+
+			function animate() {
+				
+				requestAnimationFrame( animate );
+				
+				controls.update();
+
+				render();
+			}
+			
+			var prevTime = Date.now();
+			function render() {
+
+				/*if ( animation ) {
+
+					var time = Date.now();
+
+					animation.update( time - prevTime );
+
+					prevTime = time;
+
+				}*/
+				
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+
 </html>
