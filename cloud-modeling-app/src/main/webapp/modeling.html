@@ -44,6 +44,12 @@
         <br>
         Сетка
         <br>
+        <label for="nod_ox">Узлов OX</label>
+        <input id="nod_ox" class="form-control" type="text" />
+        <label for="nod_oy">Узлов OY</label>
+        <input id="nod_oy" class="form-control" type="text" />
+        <label for="nod_oz">Узлов OZ</label>
+        <input id="nod_oz" class="form-control" type="text" />
         <input type="button" class="btn btn-primary" id="btn_mesh" onclick="createMesh()" value="Mesh">
         
         
@@ -70,27 +76,39 @@ var xx = 0;
 var yy = 0;
 var zz = 0;
 
+//TODO пока глобальные переменные
+var nx = 0; 
+var ny = 0;
+var nz = 0;
+
 var whatDraw = 1; // 1 - model
 			      // 2 - mesh
 
 // Create new object by parameters
+function getMeshResource() {
+	//TODO ошибка внедрение возможно
+	var f = "webapi/mesh?xc="+nx+"&yc="+ny+"&zc="+nz;
+	return f;
+}
 
 function buildBox() {
 	whatDraw = 1;
-	var x_el = document.getElementById('dim_ox').value;
-	var y_el = document.getElementById('dim_oy').value;
-	var z_el = document.getElementById('dim_oz').value;
+ xx = document.getElementById('dim_ox').value;
+	 yy = document.getElementById('dim_oy').value;
+	 zz = document.getElementById('dim_oz').value;
  
-	//TODO: Добавить проверки
 	
-	xx = x_el*100;
-	yy = y_el*100;
-	zz = z_el*100;
+	
 	drawBox();
 }
 
 function createMesh() {
 	whatDraw = 2;
+	
+	nx = document.getElementById('nod_ox').value;
+	ny = document.getElementById('nod_oy').value;
+	nz = document.getElementById('nod_oz').value;
+	
 	drawBox();
 }
 
@@ -228,27 +246,30 @@ function drawBox() {
   }
   
   if(whatDraw === 1) {
-    var geometry = new THREE.BoxGeometry( zz, xx, yy );
+    var geometry = new THREE.BoxGeometry( zz, xx, yy);
     var texture = THREE.ImageUtils.loadTexture( 'textures/st_27.jpg' );
     texture.anisotropy = 16;
     var material = new THREE.MeshBasicMaterial( { map: texture } );
-
     mesh = new THREE.Mesh( geometry, material );
+    //TODO убрать
+    mesh.scale.set( 100.5, 100.5, 100.5 );   
     scene.add( mesh );
   } else {
 	 console.log('In');
 	  
 	  var materials = [
-        new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
+        new THREE.MeshBasicMaterial( { color: 0xb9b6ba, side: THREE.DoubleSide } ),//new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
         new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true } )
       ];
 
       var loader = new THREE.JSONLoader( true );
-      loader.load( "webapi/mesh", function( geometry ) {
+      var url = getMeshResource();
+      loader.load( url, function( geometry ) {
       //material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
       //mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true}) );//new THREE.MeshLambertMaterial( { color: 0x606060, morphTargets: true } ) );
       mesh = THREE.SceneUtils.createMultiMaterialObject( geometry, materials );	
       mesh.scale.set( 100.5, 100.5, 100.5 );
+      
       scene.add( mesh );
 
       //animation = new THREE.MorphAnimation( mesh );
